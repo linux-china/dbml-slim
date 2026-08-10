@@ -15,20 +15,20 @@ declare class Parser {
     constructor();
     static parseJSONToDatabase(rawDatabase: RawDatabase): Database;
     /** @deprecated Use parseMySQLToJSONv2 instead */
-    static parseMySQLToJSON(str: string): RawDatabase;
+    // static parseMySQLToJSON(str: string): RawDatabase;
     static parseMySQLToJSONv2(str: string): RawDatabase;
     /** @deprecated Use parsePostgresToJSONv2 instead */
-    static parsePostgresToJSON(str: string): RawDatabase;
+    // static parsePostgresToJSON(str: string): RawDatabase;
     static parsePostgresToJSONv2(str: string): RawDatabase;
     /** @deprecated Use parseDBMLToJSONv2 instead */
-    static parseDBMLToJSON(str: string): RawDatabase;
+    // static parseDBMLToJSON(str: string): RawDatabase;
     static parseDBMLToJSONv2(str: string): RawDatabase;
     static parseSchemaRbToJSON(str: string): RawDatabase;
     /** @deprecated Use parseMSSQLToJSONv2 instead */
-    static parseMSSQLToJSON(str: string): RawDatabase;
-    static parseMSSQLToJSONv2(str: string): RawDatabase;
-    static parseSnowflakeToJSON(str: string): RawDatabase;
-    static parseOracleToJSON(str: string): RawDatabase;
+    // static parseMSSQLToJSON(str: string): RawDatabase;
+    // static parseMSSQLToJSONv2(str: string): RawDatabase;
+    // static parseSnowflakeToJSON(str: string): RawDatabase;
+    // static parseOracleToJSON(str: string): RawDatabase;
     static parse(str: string, format: ParseFormat): Database;
     static parse(str: RawDatabase, format: 'json'): Database;
     getDbmlSource(filepath: Filepath | string): string | undefined;

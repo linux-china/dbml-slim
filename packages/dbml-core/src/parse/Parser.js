@@ -3,11 +3,11 @@ import {
 } from '@dbml/parse';
 import Database from '../model_structure/database';
 import { parse } from './ANTLR/ASTGeneration';
-import dbmlParser from './deprecated/dbmlParser.cjs';
-import mssqlParser from './deprecated/mssqlParser.cjs';
-import mysqlParser from './deprecated/mysqlParser.cjs';
-import postgresParser from './deprecated/postgresParser.cjs';
-import schemarbParser from './deprecated/schemarbParser.cjs';
+// import dbmlParser from './deprecated/dbmlParser.cjs';
+// import mssqlParser from './deprecated/mssqlParser.cjs';
+// import mysqlParser from './deprecated/mysqlParser.cjs';
+// import postgresParser from './deprecated/postgresParser.cjs';
+// import schemarbParser from './deprecated/schemarbParser.cjs';
 import { CompilerError } from './error';
 
 class Parser {
@@ -29,9 +29,9 @@ class Parser {
   /**
    * @deprecated Use the `parseMySQLToJSONv2` method instead
    */
-  static parseMySQLToJSON (str) {
-    return mysqlParser.parse(str);
-  }
+  // static parseMySQLToJSON (str) {
+  //   return mysqlParser.parse(str);
+  // }
 
   static parsePostgresToJSONv2 (str) {
     return parse(str, 'postgres');
@@ -40,9 +40,9 @@ class Parser {
   /**
    * @deprecated Use the `parsePostgresToJSONv2` method instead
    */
-  static parsePostgresToJSON (str) {
-    return postgresParser.parse(str);
-  }
+  // static parsePostgresToJSON (str) {
+  //   return postgresParser.parse(str);
+  // }
 
   static parseDBMLToJSONv2 (str) {
     const layout = new MemoryProjectLayout();
@@ -58,32 +58,32 @@ class Parser {
   /**
    * @deprecated Use the `parseDBMLToJSONv2` method instead
    */
-  static parseDBMLToJSON (str) {
-    return dbmlParser.parse(str);
-  }
+  // static parseDBMLToJSON (str) {
+  //   return dbmlParser.parse(str);
+  // }
 
-  static parseSchemaRbToJSON (str) {
-    return schemarbParser.parse(str);
-  }
+  // static parseSchemaRbToJSON (str) {
+  //   return schemarbParser.parse(str);
+  // }
 
   /**
    * @deprecated Use the `parseMSSQLToJSONv2` method instead
    */
-  static parseMSSQLToJSON (str) {
-    return mssqlParser.parseWithPegError(str);
-  }
+  // static parseMSSQLToJSON (str) {
+  //   return mssqlParser.parseWithPegError(str);
+  // }
 
-  static parseMSSQLToJSONv2 (str) {
-    return parse(str, 'mssql');
-  }
+  // static parseMSSQLToJSONv2 (str) {
+  //   return parse(str, 'mssql');
+  // }
 
-  static parseSnowflakeToJSON (str) {
-    return parse(str, 'snowflake');
-  }
+  // static parseSnowflakeToJSON (str) {
+  //   return parse(str, 'snowflake');
+  // }
 
-  static parseOracleToJSON (str) {
-    return parse(str, 'oracle');
-  }
+  // static parseOracleToJSON (str) {
+  //   return parse(str, 'oracle');
+  // }
 
   static parse (str, format) {
     return new Parser().parse(str, format);

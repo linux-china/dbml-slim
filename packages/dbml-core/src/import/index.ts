@@ -3,7 +3,7 @@ import Parser from '../parse/Parser';
 import ModelExporter from '../export/ModelExporter';
 import type { DbmlExporterOptions } from '../export/DbmlExporter';
 
-export type ImportFormat = 'dbml' | 'mysql' | 'postgres' | 'json' | 'mssql' | 'postgresLegacy' | 'mssqlLegacy' | 'schemarb' | 'snowflake' | 'oracle';
+export type ImportFormat = 'dbml' | 'mysql' | 'postgres' | 'json'; // | 'mssql' | 'postgresLegacy' | 'mssqlLegacy' | 'schemarb' | 'snowflake' | 'oracle';
 
 export type ImportOptions = Partial<DbmlExporterOptions>;
 
