@@ -1,3 +1,21 @@
+## v10.1.1 (2026-08-14)
+
+#### :bug: Bug Fix
+* `dbml-cli`, `dbml-connector`, `dbml-core`, `dbml-parse`
+  * [#958](https://github.com/holistics/dbml/pull/958) Resolve a dep block through the symbol table ([@NQPhuc](https://github.com/NQPhuc))
+
+#### Committers: 1
+- NQPhuc ([@NQPhuc](https://github.com/NQPhuc))
+
+## v10.1.0 (2026-08-13)
+
+#### :rocket: New Feature
+* `dbml-cli`, `dbml-connector`, `dbml-core`, `dbml-parse`
+  * [#956](https://github.com/holistics/dbml/pull/956) Improve parsing diagnostics with explanations ([@huydo862003](https://github.com/huydo862003))
+
+#### Committers: 1
+- Huy Do Nguyen An ([@huydo862003](https://github.com/huydo862003))
+
 ## v10.0.0 (2026-08-10)
 
 #### :bug: Bug Fix
