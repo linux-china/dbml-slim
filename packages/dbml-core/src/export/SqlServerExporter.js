@@ -16,7 +16,7 @@ import {
 
 class SqlServerExporter {
   static exportRecords (model) {
-    const records = Object.values(model.records || {});
+    const records = Object.values(model.records || {}).filter((r) => !r.example);
     if (isEmpty(records)) {
       return [];
     }
@@ -68,7 +68,7 @@ class SqlServerExporter {
 
       if (field.enumId) {
         const _enum = model.enums[field.enumId];
-        line = `[${field.name}] nvarchar(255) NOT NULL CHECK ([${field.name}] IN (`;
+        line = `[${field.name}] nvarchar(255) CHECK ([${field.name}] IN (`;
         const enumValues = _enum.valueIds.map((valueId) => {
           const value = model.enumValues[valueId];
           return `'${value.name}'`;
@@ -314,9 +314,7 @@ class SqlServerExporter {
       }
       const indexName = index.name
         ? `[${index.name}]`
-        : `${shouldPrintSchema(schema, model)
-          ? `[${schema.name}].`
-          : ''}[${table.name}_index_${i}]`;
+        : `[${table.name}_index_${i}]`;
       line += ` INDEX ${indexName} ON ${shouldPrintSchema(schema, model)
         ? `[${schema.name}].`
         : ''}[${table.name}]`;
