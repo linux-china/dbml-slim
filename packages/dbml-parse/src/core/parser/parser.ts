@@ -66,7 +66,7 @@ class PartialParsingError<T extends SyntaxNode> {
 //   1. Determine whether it can handle this syntax error: `this.canHandle(e)`
 //   2. If it can't, throw a new PartialParsingError with the partially built node
 //   3. If it can, call `synchronizeParseMethod`
-//      INVARIANT: `synchronizeParseMethod` must ensure in most cases that it consumes at least one Lexer token, else, we risk infinite loops. Only do this when you know what you're doing, but avoid doing so.
+//      INVARIANT: `synchronizeParseMethod` must consume at least one token in most cases to avoid infinite loops
 export default class Parser {
   private tokens: SyntaxToken[];
 
@@ -496,7 +496,7 @@ export default class Parser {
       throw new PartialParsingError(e.token, buildElement(), e.handlerContext);
     }
 
-    // A `metadata` block carries a second identifier (the target kind) before the name.
+    // A `metadata` block carries a second identifier (the target kind) before the name
     if (isMetadataKeyword(args.type)) {
       try {
         this.consume('Expect a metadata target kind', SyntaxTokenKind.IDENTIFIER);
@@ -696,8 +696,7 @@ export default class Parser {
       throw new PartialParsingError(e.token, buildExpression(), e.handlerContext);
     }
 
-    // If there are newlines after the callee, then it's a simple expression
-    // such as a PrefixExpression, InfixExpression, ...
+    // If there are newlines after the callee, it's a simple expression such as a PrefixExpression or InfixExpression
     // e.g
     // indexes {
     //   (id, `id * 2`)
@@ -913,6 +912,16 @@ export default class Parser {
         } else {
           const opInfixPower = infixBp(op);
           if (opInfixPower.left === null || opInfixPower.left <= mbp) {
+            break;
+          }
+          // A line of a block body that starts with an operator able to start an expression,
+          // such as `-2, 7` in Records, is an expression of its own rather than
+          // the rest of the line above
+          if (
+            prefixBp(op).right !== null
+            && isAtStartOfLine(this.previous(), op)
+            && this.contextStack.top() === ParsingContext.BlockExpression
+          ) {
             break;
           }
           this.advance();
@@ -1516,7 +1525,7 @@ export default class Parser {
   }
 }
 
-// Pratt binding powers: higher binds tighter; right = left + 1 => left-associative.
+// Pratt binding powers: higher binds tighter, right = left + 1 => left-associative
 const enum Prec {
   Assign = 2, // =
   Equality = 4, // == !=

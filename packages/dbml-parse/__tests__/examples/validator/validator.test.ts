@@ -85,8 +85,22 @@ describe('[example] validator', () => {
       expect(errors).toHaveLength(0);
     });
 
-    test('rejects a non-string and non-color custom metadata value on a table', () => {
+    test('accepts a boolean custom metadata value on a table', () => {
       const source = 'Table users [pii: true] { id int }';
+      const errors = analyze(source).getErrors();
+
+      expect(errors).toHaveLength(0);
+    });
+
+    test('accepts a signed number custom metadata value on a table', () => {
+      const source = 'Table users [priority: -1, weight: +5] { id int }';
+      const errors = analyze(source).getErrors();
+
+      expect(errors).toHaveLength(0);
+    });
+
+    test('rejects a custom metadata number with more than one sign on a table', () => {
+      const source = 'Table users [priority: --1] { id int }';
       const errors = analyze(source).getErrors();
 
       expect(errors).toHaveLength(1);
@@ -190,7 +204,7 @@ describe('[example] validator', () => {
     });
 
     test('should reject a valueless custom column setting', () => {
-      // A non-builtin key is now custom metadata, but it requires a value.
+      // A non-builtin key is now custom metadata but it requires a value
       const source = 'Table users { id int [unknown_setting] }';
       const errors = analyze(source).getErrors();
 
@@ -205,12 +219,18 @@ describe('[example] validator', () => {
       expect(errors).toHaveLength(0);
     });
 
-    test('should reject a custom column setting with a non-string value', () => {
+    test('should accept a custom column setting with a boolean value', () => {
       const source = 'Table users { id int [pii: true] }';
       const errors = analyze(source).getErrors();
 
-      expect(errors).toHaveLength(1);
-      expect(errors[0].code).toBe(CompileErrorCode.INVALID_COLUMN_SETTING_VALUE);
+      expect(errors).toHaveLength(0);
+    });
+
+    test('should accept a custom column setting with a signed number value', () => {
+      const source = 'Table users { id int [rank: -1, weight: +2.5] }';
+      const errors = analyze(source).getErrors();
+
+      expect(errors).toHaveLength(0);
     });
 
     test('should accept column with null setting', () => {
@@ -738,7 +758,7 @@ describe('[example] validator', () => {
     });
 
     test('accepts unknown setting on sticky note as custom metadata', () => {
-      // A non-builtin key on a sticky note is now free-form custom metadata.
+      // A non-builtin key on a sticky note is now free-form custom metadata
       const source = `
         Note my_note [unknown: "value"] {
           'A note'
