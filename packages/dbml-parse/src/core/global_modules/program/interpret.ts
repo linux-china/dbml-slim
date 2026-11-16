@@ -1,35 +1,26 @@
 import Compiler from '@/compiler/index';
-import { CompileError, CompileErrorCode } from '@/core/types/errors';
-import type { CompileWarning, CompileInfo } from '@/core/types/errors';
+import {
+  CompileError, CompileErrorCode, CompileWarning, type CompileInfo,
+} from '@/core/types/errors';
 import type { Filepath } from '@/core/types/filepath';
 import { UNHANDLED } from '@/core/types/module';
-import { ProgramNode } from '@/core/types/nodes';
+import { ProgramNode, type SyntaxNode } from '@/core/types/nodes';
 import Report from '@/core/types/report';
 import type {
   Alias, Database, Dep, DiagramView, Enum,
-  Note, Project, Ref,
+  ArchGroup, ArchLink, ArchNode, Note, Project, Ref,
   RefEndpoint, SchemaElement, Table,
   TableGroup, TablePartial, TableRecord,
 } from '@/core/types/schemaJson';
 import { AliasKind } from '@/core/types/schemaJson';
 import {
-  AliasSymbol,
-  type NodeSymbol,
-  ProgramSymbol,
-  SchemaSymbol,
-  SymbolKind,
+  AliasSymbol, DepMetadata, InjectedColumnSymbol, MetadataKind,
+  PartialRefMetadata, ProgramSymbol, RecordsMetadata, SchemaSymbol,
+  SymbolKind, TablePartialSymbol, TableSymbol, UseSymbol,
 } from '@/core/types/symbol';
-import {
-  MetadataKind, PartialRefMetadata, RecordsMetadata, DepMetadata,
-} from '@/core/types/symbol/metadata';
-import { TableSymbol } from '@/core/types/symbol';
-import type { InternedNodeSymbol } from '@/core/types/symbol/symbols';
-import {
-  InjectedColumnSymbol,
-  TablePartialSymbol,
-  UseSymbol,
-} from '@/core/types/symbol/symbols';
+import type { InternedNodeSymbol, NodeMetadata, NodeSymbol } from '@/core/types/symbol';
 import { pushExternal, validateDepBlocks } from './utils';
+import { archSort } from '@/core/arch';
 import type { ElementRef } from '@/core/types/schemaJson';
 import { getTokenPosition } from '@/core/utils/interpret';
 import { getMultiplicities } from '@/core/types/relation';
@@ -46,6 +37,8 @@ export default class ProgramInterpreter {
   private warnings: CompileWarning[] = [];
   private infos: CompileInfo[] = [];
   private db: Database;
+  // Refs, Deps and Records of the program with their interpreted value, in declaration order
+  private interpretedMetadata: { metadata: NodeMetadata; value: SchemaElement | SchemaElement[] }[] = [];
 
   constructor (compiler: Compiler, symbol: ProgramSymbol, filepath: Filepath) {
     this.compiler = compiler;
@@ -77,11 +70,78 @@ export default class ProgramInterpreter {
 
   interpret (): Report<SchemaElement | SchemaElement[] | undefined> {
     this.interpretAllSymbols();
-    this.interpretAllMetadata();
+    this.interpretMetadata();
     this.interpretAllAliases();
     this.validatePartialRefs();
     this.infos.push(...this.validateRecords());
+    this.finishArch();
     return new Report(this.db, this.errors, this.warnings, this.infos);
+  }
+
+  // Architecture entries, filled while interpreting and written to `db` at the end
+  private arch = {
+    nodes: [] as ArchNode[],
+    groups: [] as ArchGroup[],
+    links: [] as {
+      link: ArchLink;
+      declaration: SyntaxNode;
+    }[],
+  };
+
+  private finishArch () {
+    const isArch = this.compiler.fileKind(this.filepath) === 'arch';
+
+    // A handle can repeat across roles, so an element is keyed by both
+    const keyOf = (handle: string, role: string) => `${role}\u0000${handle}`;
+    // The first group to list an element owns it
+    const elements = new Set([
+      ...this.arch.nodes.map((node) => keyOf(node.alias ?? node.name, node.role)),
+      ...this.arch.groups.map((group) => keyOf(group.alias ?? group.name, 'Group')),
+      ...this.db.notes.map((note) => keyOf(note.name, 'Note')),
+    ]);
+    const parent = new Map<string, string>();
+    for (const group of this.arch.groups) {
+      const key = keyOf(group.alias ?? group.name, 'Group');
+      for (const child of group.children) {
+        const childKey = keyOf(child.handle, child.role);
+        if (elements.has(childKey) && !parent.has(childKey)) parent.set(childKey, key);
+      }
+    }
+    for (const group of this.arch.groups) {
+      const key = keyOf(group.alias ?? group.name, 'Group');
+      group.children = group.children.filter((child) => parent.get(keyOf(child.handle, child.role)) === key);
+    }
+
+    // A repeated link, or a link into its own container, still draws, with a warning
+    const seen = new Set<string>();
+    for (const { link, declaration } of this.arch.links) {
+      const from = keyOf(link.from, link.fromRole);
+      const to = keyOf(link.to, link.toRole);
+      const key = [
+        from,
+        to,
+      ].sort().join('\u0001');
+      if (seen.has(key)) {
+        this.warnings.push(new CompileWarning(CompileErrorCode.ARCH_DUPLICATE_LINK, `${link.from} and ${link.to} are already connected`, declaration));
+      }
+      seen.add(key);
+      if (parent.get(from) === to || parent.get(to) === from) {
+        this.warnings.push(new CompileWarning(CompileErrorCode.ARCH_NESTED_ENDPOINTS, `${link.from} is already inside ${link.to}`, declaration));
+      }
+    }
+
+    const entries = {
+      nodes: this.arch.nodes,
+      groups: this.arch.groups,
+      links: this.arch.links.map(({ link }) => link),
+    };
+    for (const [key, value] of Object.entries(entries) as [keyof typeof entries, never[]][]) {
+      if (isArch || value.length) this.db[key] = value;
+    }
+
+    const fm = this.compiler.frontMatter(this.filepath);
+    if (Object.keys(fm).length) this.db.frontMatter = fm;
+    if (isArch) this.db.diagramType = 'arch';
   }
 
   private interpretAllSymbols () {
@@ -134,7 +194,7 @@ export default class ProgramInterpreter {
       this.warnings.push(...result.getWarnings());
       this.infos.push(...result.getInfos());
       const value = result.getValue();
-      if (value) this.pushElement(use, value);
+      if (value) this.pushElement(use, importedUnder(value, use));
     }
 
     const sourceName = original instanceof TableSymbol
@@ -164,37 +224,48 @@ export default class ProgramInterpreter {
     pushExternal(this.db, use, ref);
   }
 
-  private interpretAllMetadata () {
-    const metadatas = this.compiler.symbolMetadata(this.programSymbol) ?? [];
-    const seenRefEndpoints = new Set<string>();
-    const seenDepEndpoints = new Set<string>();
+  // Interpret the Refs, Deps, Records and architecture Links applying in the program in declaration order, then run the Program-wide checks and push them
+  private interpretMetadata () {
+    const metas = this.compiler.symbolMetadata(this.programSymbol)
+      .filter((m) => m.isVisibleFrom(this.compiler, this.programSymbol))
+      .filter((m) => m.kind === MetadataKind.Ref || m.kind === MetadataKind.Dep || m.kind === MetadataKind.Records || m.kind === MetadataKind.Link);
 
-    // Pre-scan: count records blocks per table to detect duplicates
-    const recordsTableCount = new Map<string, {
-      count: number;
-      tableName: string;
-    }>();
-    for (const meta of metadatas) {
+    // A Table can only have one Records block
+    const recordsByTable = new Map<InternedNodeSymbol, RecordsMetadata[]>();
+    for (const meta of metas) {
       if (!(meta instanceof RecordsMetadata)) continue;
-      const tableSymbol = meta.table(this.compiler);
-      if (!tableSymbol) continue;
-      const key = tableSymbol.originalSymbol.intern();
-      const existing = recordsTableCount.get(key);
-      if (existing) existing.count++;
-      else recordsTableCount.set(key, {
-        count: 1,
-        tableName: tableSymbol.name ?? '',
-      });
+      const table = meta.table(this.compiler);
+      if (!table) continue;
+      const key = table.originalSymbol.intern();
+      recordsByTable.set(key, [...(recordsByTable.get(key) ?? []), meta]);
     }
 
-    for (const meta of metadatas) {
+    for (const meta of metas) {
       const result = this.compiler.interpretMetadata(meta, this.filepath);
       if (result.hasValue(UNHANDLED)) continue;
       this.errors.push(...result.getErrors());
       this.warnings.push(...result.getWarnings());
       this.infos.push(...result.getInfos());
       const value = result.getValue();
-      if (value === undefined) continue;
+
+      if (meta instanceof RecordsMetadata) {
+        const table = meta.table(this.compiler);
+        if (table && (recordsByTable.get(table.originalSymbol.intern())?.length ?? 0) > 1) {
+          this.errors.push(new CompileError(
+            CompileErrorCode.DUPLICATE_RECORDS_FOR_TABLE,
+            `Duplicate Records blocks for the same Table '${table.name ?? ''}' - A Table can only have one Records block`,
+            meta.declaration,
+          ));
+          continue;
+        }
+      }
+      if (value !== undefined) this.interpretedMetadata.push({ metadata: meta, value });
+    }
+
+    const seenRefEndpoints = new Set<string>();
+    const seenDepEndpoints = new Set<string>();
+
+    for (const { metadata: meta, value } of this.interpretedMetadata) {
       switch (meta.kind) {
         case MetadataKind.Ref: {
           const ref = value as Ref;
@@ -265,32 +336,30 @@ export default class ProgramInterpreter {
           this.db.deps.push(dep);
           break;
         }
-        case MetadataKind.Records: {
-          if (meta instanceof RecordsMetadata) {
-            const tableSymbol = meta.table(this.compiler);
-            const key = tableSymbol?.originalSymbol.intern() ?? '';
-            const entry = key ? recordsTableCount.get(key) : undefined;
-            if (entry && entry.count > 1) {
-              this.errors.push(new CompileError(
-                CompileErrorCode.DUPLICATE_RECORDS_FOR_TABLE,
-                `Duplicate Records blocks for the same Table '${entry.tableName}' - A Table can only have one Records block`,
-                meta.declaration,
-              ));
-              break;
-            }
-          }
+        case MetadataKind.Records:
           this.db.records.push(value as TableRecord);
           break;
-        }
-        case MetadataKind.Project:
-          this.db.project = value as Project;
+        case MetadataKind.Link:
+          this.arch.links.push({
+            link: value as ArchLink,
+            declaration: meta.declaration,
+          });
           break;
-
-        // Handled inside each element
-        case MetadataKind.MetadataElement:
         default:
           break;
       }
+    }
+
+    // The Program owns its Project
+    for (const meta of this.compiler.symbolMetadata(this.programSymbol)) {
+      if (meta.kind !== MetadataKind.Project) continue;
+      const result = this.compiler.interpretMetadata(meta, this.filepath);
+      if (result.hasValue(UNHANDLED)) continue;
+      this.errors.push(...result.getErrors());
+      this.warnings.push(...result.getWarnings());
+      this.infos.push(...result.getInfos());
+      const value = result.getValue();
+      if (value !== undefined) this.db.project = value as Project;
     }
   }
 
@@ -318,37 +387,28 @@ export default class ProgramInterpreter {
     const infos: CompileInfo[] = [];
     const fkTableMap = new Map<InternedNodeSymbol, TableInfo>();
 
-    // Seed fkTableMap with ALL table symbols (record = undefined)
-    const schemas = this.compiler.symbolMembers(this.programSymbol).getFiltered(UNHANDLED) ?? [];
-    for (const schema of schemas) {
-      if (!(schema instanceof SchemaSymbol)) continue;
-      const members = this.compiler.symbolMembers(schema).getFiltered(UNHANDLED) ?? [];
-      for (const member of members) {
-        if (!member.isKind(SymbolKind.Table)) continue;
-        const original = member.originalSymbol;
-        if (!(original instanceof TableSymbol)) continue;
-        const key = original.intern();
-        if (!fkTableMap.has(key)) {
-          fkTableMap.set(key, {
-            tableSymbol: original,
-            record: undefined,
-            recordBlock: original.declaration,
-          });
-        }
+    // Seed fkTableMap with ALL visible table symbols (record = undefined)
+    const tableSymbols = (this.compiler.symbolMembers(this.programSymbol).getFiltered(UNHANDLED) ?? [])
+      .filter((s) => s.isKind(SymbolKind.Table))
+      .map((s) => s.originalSymbol);
+    for (const original of tableSymbols) {
+      const key = original.intern();
+      if (!fkTableMap.has(key)) {
+        fkTableMap.set(key, {
+          tableSymbol: (original as TableSymbol),
+          record: undefined,
+          recordBlock: original.declaration,
+        });
       }
     }
 
-    // Fill in records and run PK/unique validation
-    const metadatas = this.compiler.symbolMetadata(this.programSymbol);
-    for (const meta of metadatas) {
+    // Fill in records (already interpreted by their owner tables) and run PK/unique validation
+    for (const { metadata: meta, value } of this.interpretedMetadata) {
       if (!(meta instanceof RecordsMetadata)) continue;
       const tableSymbol = meta.table(this.compiler);
       if (!(tableSymbol instanceof TableSymbol)) continue;
 
-      const result = this.compiler.interpretMetadata(meta, this.filepath);
-      if (result.hasValue(UNHANDLED)) continue;
-      const record = result.getValue() as TableRecord | undefined;
-      if (!record) continue;
+      const record = value as TableRecord;
 
       infos.push(...validatePrimaryKey(this.compiler, tableSymbol, meta.declaration, record));
       infos.push(...validateUnique(this.compiler, tableSymbol, record));
@@ -373,6 +433,7 @@ export default class ProgramInterpreter {
 
   private validatePartialRefs () {
     const partialMetas = this.compiler.symbolMetadata(this.programSymbol)
+      .filter((m) => m.isVisibleFrom(this.compiler, this.programSymbol))
       .filter((m): m is PartialRefMetadata => m instanceof PartialRefMetadata);
     for (const meta of partialMetas) {
       this.infos.push(...validatePartialRef(this.compiler, meta));
@@ -381,6 +442,7 @@ export default class ProgramInterpreter {
 
   private collectPartialRefs (fkTableMap: Map<InternedNodeSymbol, TableInfo>): Ref[] {
     const partialMetas = this.compiler.symbolMetadata(this.programSymbol)
+      .filter((m) => m.isVisibleFrom(this.compiler, this.programSymbol))
       .filter((m): m is PartialRefMetadata => m instanceof PartialRefMetadata);
 
     const refs: Ref[] = [];
@@ -449,6 +511,12 @@ export default class ProgramInterpreter {
   private pushElement (symbol: NodeSymbol, value: SchemaElement | SchemaElement[]) {
     if (Array.isArray(value)) return;
     switch (symbol.kind) {
+      case SymbolKind.Element: {
+        const sort = archSort(symbol.originalSymbol.declaration!);
+        if (sort === 'group') this.arch.groups.push(value as ArchGroup);
+        else this.arch.nodes.push(value as ArchNode);
+        break;
+      }
       case SymbolKind.Table:
         this.db.tables.push(value as Table);
         break;
@@ -470,4 +538,11 @@ export default class ProgramInterpreter {
       default: break;
     }
   }
+}
+
+// `use { Server api as api2 }`: in this file the element is `api2`, and it still shows the name its own file gave it
+function importedUnder (value: SchemaElement | SchemaElement[], use: UseSymbol): SchemaElement | SchemaElement[] {
+  if (!use.isKind(SymbolKind.Element) || Array.isArray(value) || use.name === undefined) return value;
+  const element = value as ArchNode | ArchGroup;
+  return (element.alias ?? element.name) === use.name ? value : { ...element, alias: use.name };
 }

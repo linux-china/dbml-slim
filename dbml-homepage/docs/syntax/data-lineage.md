@@ -1,8 +1,8 @@
 ---
-title: Data Lineage
+title: Data Lineage Markup
 ---
 
-# Data Lineage
+# Data Lineage Markup
 
 `Dep` lets you describe **data dependency** among tables and their columns. It allows you to model: Which tables (or columns) this table (or column) is computed from? Think of it like a SQL view where the view is computed from one or more source tables (or other views).
 
@@ -71,7 +71,7 @@ Block settings:
 
 - `note`: description of the transformation. Supports [multi-line strings](./language-basics.md#multi-line-string).
 - `color`: lineage line color. See [Colors](./enrichment-visualization.md#colors).
-- Custom keys (e.g. `materialized`, `owner`) are preserved in the output.
+- Any other key (e.g. `materialized`, `owner`) is a [custom property](./enrichment-visualization.md#custom-properties).
 
 :::note
 - All edges in a block must target the **same downstream table**, or columns of that table.

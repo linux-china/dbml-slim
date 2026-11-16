@@ -1,3 +1,62 @@
+## v12.0.0 (2026-11-09)
+
+#### :boom: Breaking Change
+* `dbml-cli`, `dbml-connector`, `dbml-core`, `dbml-parse`
+  * [#1010](https://github.com/holistics/dbml/pull/1010) ft: Support architecture dbml ([@NQPhuc](https://github.com/NQPhuc))
+
+#### :house_with_garden: Internal
+* [#1030](https://github.com/holistics/dbml/pull/1030) chore: upgrade node to v22.23.4 for doc deploy action ([@xuantho573](https://github.com/xuantho573))
+
+#### Committers: 2
+- NQPhuc ([@NQPhuc](https://github.com/NQPhuc))
+- Tho Nguyen Xuan ([@xuantho573](https://github.com/xuantho573))
+
+## v11.1.0 (2026-11-06)
+
+#### :rocket: New Feature
+* `dbml-cli`, `dbml-connector`, `dbml-core`, `dbml-parse`
+  * [#989](https://github.com/holistics/dbml/pull/989) Feat: Support Metadata for Ref ([@xuantho573](https://github.com/xuantho573))
+
+#### :bug: Bug Fix
+* `dbml-cli`, `dbml-connector`, `dbml-core`, `dbml-parse`
+  * [#989](https://github.com/holistics/dbml/pull/989) Fix: Table must have at least one field ([@huydo862003](https://github.com/huydo862003))
+
+#### :robot: Dependencies Update
+* [#1028](https://github.com/holistics/dbml/pull/1028) chore(deps): bump snowflake-sdk from 3.3.0 to 3.4.1 and @azure/identity from 4.13.0 to 4.14.1 ([@xuantho573](https://github.com/xuantho573))
+* [#1027](https://github.com/holistics/dbml/pull/1027) chore(deps): bump joi from 17.13.8 to 17.13.9 in /dbml-homepage ([@dependabot[bot]](https://github.com/apps/dependabot))
+
+#### Committers: 2
+- Huy Do Nguyen An ([@huydo862003](https://github.com/huydo862003))
+- Tho Nguyen Xuan ([@xuantho573](https://github.com/xuantho573))
+
+## v11.0.1 (2026-10-26)
+
+#### :rocket: New Feature
+* `dbml-parse`
+  * [#1022](https://github.com/holistics/dbml/pull/1022) Highlight file imports with errors ([@huydo862003](https://github.com/huydo862003))
+  * [#1014](https://github.com/holistics/dbml/pull/1014) Support programmatic metadata sync actions ([@huydo862003](https://github.com/huydo862003))
+* `dbml-core`, `dbml-parse`
+  * [#1015](https://github.com/holistics/dbml/pull/1015) Allow aliases on enums ([@MrJovy](https://github.com/MrJovy))
+  * [#1018](https://github.com/holistics/dbml/pull/1018) Support descending index columns with `(col [desc])` ([@Roshan1299](https://github.com/Roshan1299))
+
+#### :robot: Dependencies Update
+* `dbml-connector`
+  * [#992](https://github.com/holistics/dbml/pull/992) chore(deps): bump snowflake-sdk from 2.4.0 to 3.3.0 ([@dependabot[bot]](https://github.com/apps/dependabot))
+* Other
+  * [#1017](https://github.com/holistics/dbml/pull/1017) chore(deps): bump launch-editor from 2.14.1 to 2.14.2 in /dbml-homepage ([@dependabot[bot]](https://github.com/apps/dependabot))
+  * [#1023](https://github.com/holistics/dbml/pull/1023) chore(deps): bump postcss-selector-parser from 6.0.16 to 6.1.5 in /dbml-homepage ([@dependabot[bot]](https://github.com/apps/dependabot))
+  * [#1025](https://github.com/holistics/dbml/pull/1025) chore(deps): bump qs from 6.16.0 to 6.16.2 in /dbml-homepage ([@dependabot[bot]](https://github.com/apps/dependabot))
+  * [#1024](https://github.com/holistics/dbml/pull/1024) chore(deps): bump body-parser from 1.20.8 to 1.20.9 in /dbml-homepage ([@dependabot[bot]](https://github.com/apps/dependabot))
+  * [#1020](https://github.com/holistics/dbml/pull/1020) chore(deps): bump fast-uri from 3.1.8 to 3.1.9 in /dbml-homepage ([@dependabot[bot]](https://github.com/apps/dependabot))
+  * [#1012](https://github.com/holistics/dbml/pull/1012) chore(deps): bump follow-redirects from 1.16.0 to 1.16.2 ([@dependabot[bot]](https://github.com/apps/dependabot))
+  * [#1019](https://github.com/holistics/dbml/pull/1019) chore(deps): bump dompurify from 3.4.16 to 3.4.17 ([@dependabot[bot]](https://github.com/apps/dependabot))
+
+#### Committers: 4
+- Huy Do Nguyen An ([@huydo862003](https://github.com/huydo862003))
+- Tho Nguyen Xuan ([@xuantho573](https://github.com/xuantho573))
+- Jovy ([@MrJovy](https://github.com/MrJovy))
+- Roshan Banisetti ([@Roshan1299](https://github.com/Roshan1299))
+
 ## v11.0.0 (2026-10-26)
 
 #### :boom: Breaking Change

@@ -5,6 +5,7 @@ import importer from './import';
 import exporter from './export';
 import {
   renameTable,
+  renameElement,
   updateElementSetting,
   updateElementSettingEdit,
   syncDiagramView,
@@ -17,6 +18,7 @@ export {
   importer,
   exporter,
   renameTable,
+  renameElement,
   updateElementSetting,
   updateElementSettingEdit,
   syncDiagramView,
@@ -49,7 +51,9 @@ export {
   tryExtractDateTime,
   tryExtractEnum,
   addDoubleQuoteIfNeeded,
-  formatRecordValue,
+  formatTypedValue,
+  applyTextEdits,
+  syncElementMetadata,
   // Monaco editor syntax highlighting
   dbmlMonarchTokensProvider,
   DEFAULT_ENTRY,
@@ -68,6 +72,9 @@ export {
   isEndpointRequired,
   isEndpointOptional,
   makeRelationshipRequired,
+  ARCH_BUILTIN_ROLES,
+  ARCH_NAME_PRECEDENCE,
+  formatRoleQualifiedName,
 } from '@dbml/parse';
 
 export { inferMultiplicitiesFromColumns } from './transform/relations';
@@ -95,8 +102,11 @@ export type {
   DepIdentifier,
   NoteIdentifier,
   TableGroupIdentifier,
+  ArchElementIdentifier,
+  ArchLinkIdentifier,
   RelationCardinality,
   RelationshipOp,
   DbmlProjectLayout,
+  ArchRoleSpec,
   FileSpecifierInfo,
 } from '@dbml/parse';

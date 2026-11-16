@@ -1,6 +1,5 @@
 import Compiler from '@/compiler/index';
 
-// Export the types that playground and other consumers need
 export { DEFAULT_ENTRY } from '@/constants';
 
 export { Filepath } from '@/core/types/filepath';
@@ -14,10 +13,9 @@ export { ElementKind } from '@/core/types/keywords';
 
 export {
   type NodeSymbol,
+  MetadataKind,
   SymbolKind,
 } from '@/core/types/symbol';
-
-export { MetadataKind } from '@/core/types/symbol/metadata';
 
 export * from '@/core/global_modules/records/utils';
 
@@ -54,7 +52,8 @@ export {
   splitQualifiedIdentifier,
   unescapeString,
   escapeString,
-  formatRecordValue,
+  formatTypedValue,
+  type TypedValue,
   isValidIdentifier,
   addDoubleQuoteIfNeeded,
   normalizeQualifiedName,
@@ -92,9 +91,23 @@ export {
   type FilterConfig,
   type DiagramView,
   type CustomMetadata,
+  type ArchNode,
+  type ArchGroup,
+  type ArchLink,
+  type ArchLinkOp,
+  type ArchRef,
+  type ArchSettings,
+  type ArchSettingValue,
   type CustomMetadataValue,
   type CustomMetadataValueType,
 } from '@/core/types/schemaJson';
+
+// Architecture files
+export { type FileKind, ARCH_DIAGRAM_TYPES, isArchDiagramType } from '@/compiler/queries/files/fileKind';
+export {
+  ARCH_BUILTIN_ROLES, ARCH_NAME_PRECEDENCE, suggestArchRole, suggestType, type ArchRoleSpec, type ArchRoleCategory,
+} from '@/core/arch';
+export { SUPPORTED_ARCH_TYPES, ARCH_TYPE_ALIAS, resolveArchType } from '@/core/arch';
 
 export {
   type RelationCardinality,
@@ -121,7 +134,8 @@ export type {
   TextEdit,
 } from '@/compiler/queries/transform';
 
-export { findDiagramViewBlocks } from '@/compiler/queries/transform';
+export { findDiagramViewBlocks, syncElementMetadata, applyTextEdits } from '@/compiler/queries/transform';
+export { formatRoleQualifiedName } from '@/compiler/queries/transform/utils/arch';
 
 // Dep transform types
 export type { DepSyncOperation, DepSyncEdge, DepEndpointRef } from '@/compiler/queries/transform';
@@ -138,6 +152,8 @@ export type {
   DepIdentifier,
   NoteIdentifier,
   TableGroupIdentifier,
+  ArchElementIdentifier,
+  ArchLinkIdentifier,
 } from '@/compiler/queries/transform';
 
 export {
@@ -146,6 +162,11 @@ export {
 } from '@/services/monarch';
 
 export * from '@/compiler/projectLayout/layout';
+
+export { dbmlModules } from '@/core/global_modules';
+export type { GlobalModule } from '@/core/global_modules/types';
+export type { ParserOptions } from '@/core/parser/parser';
+export type { DialectOptions } from '@/compiler/index';
 
 export { Compiler };
 

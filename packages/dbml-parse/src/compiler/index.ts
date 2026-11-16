@@ -7,6 +7,9 @@ import {
   nodeSymbol,
   symbolMembers,
 } from '@/core/global_modules';
+import type { GlobalModule } from '@/core/global_modules/types';
+import type { ParserOptions } from '@/core/parser/parser';
+import { type FileKind, frontMatter, fileKind } from './queries/files/fileKind';
 import {
   nodeFullname, nodeAlias, nodeSettings, validateNode,
 } from '@/core/local_modules';
@@ -40,24 +43,31 @@ import { parseFile, parseProject } from './queries/pipeline/parse';
 import { lookupMembers, symbolMembersLookupMap } from './queries/symbol/lookupMembers';
 import { symbolAliases } from './queries/symbol/symbolAliases';
 import {
-  resolutionIndex, symbolMetadata, symbolParent, symbolReferences,
+  resolutionIndex, symbolMetadata, symbolParents, symbolReferences,
 } from './queries/resolutionIndex';
 import { symbolUses } from './queries/symbol/symbolUses';
 import {
-  renameTable, syncDiagramView, syncDep, updateElementSetting, updateElementSettingEdit,
+  renameTable, renameElement, removeElement, syncDiagramView, syncDep, updateElementSetting, updateElementSettingEdit,
+  findMetadataBlock, updateElementMetadata, updateElementMetadataEdit,
 } from './queries/transform';
 import {
-  addDoubleQuoteIfNeeded, escapeString, formatRecordValue, isValidIdentifier, normalizeQualifiedName, splitQualifiedIdentifier, unescapeString,
+  addDoubleQuoteIfNeeded, escapeString, formatTypedValue, isValidIdentifier, normalizeQualifiedName, splitQualifiedIdentifier, unescapeString, type TypedValue,
 } from './queries/utils';
 import { DEFAULT_ENTRY } from '@/constants';
+
+// Every switch inside is off by default
+export interface DialectOptions {
+  parser?: ParserOptions;
+}
 
 // Re-export types
 export { ScopeKind } from './types';
 export type { TextEdit } from './queries/transform';
 // Re-export utilities
 export {
-  addDoubleQuoteIfNeeded, escapeString, formatRecordValue, isValidIdentifier, normalizeQualifiedName, splitQualifiedIdentifier, unescapeString,
+  addDoubleQuoteIfNeeded, escapeString, formatTypedValue, isValidIdentifier, normalizeQualifiedName, splitQualifiedIdentifier, unescapeString,
 };
+export type { TypedValue };
 
 // Sentinel placed in the cache while a query is being computed, indicating a cycle
 const COMPUTING = Symbol('COMPUTING');
@@ -70,11 +80,33 @@ export default class Compiler {
   readonly symbolIdGenerator = new NodeSymbolIdGenerator();
   readonly symbolFactory = new SymbolFactory(this.symbolIdGenerator);
 
-  // The structure of the DbmlProject
-  constructor (public layout: DbmlProjectLayout) {}
+  readonly explicitModules: GlobalModule[] | undefined;
+  private readonly explicitDialect: DialectOptions | undefined;
+  readonly dialect: DialectOptions;
+
+  // `layout`: the structure of the DbmlProject
+  // `modules` and `dialect`, when given, apply to every file. When omitted, each file uses the ones of its own kind (DBML or architecture).
+  constructor (
+    public layout: DbmlProjectLayout,
+    modules?: GlobalModule[],
+    dialect?: DialectOptions,
+  ) {
+    this.explicitModules = modules;
+    this.explicitDialect = dialect;
+    this.dialect = dialect ?? {};
+  }
 
   getSource (filepath: Filepath): string | undefined {
     return this.layout.getSource(filepath);
+  }
+
+  parserOptions (kind: FileKind): ParserOptions {
+    return this.explicitDialect
+      ? this.explicitDialect.parser ?? {}
+      : {
+          allowBodylessElement: kind === 'arch',
+          allowRoleReference: kind === 'arch',
+        };
   }
 
   private sourceSnapshot = new Map<string, string | undefined>();
@@ -245,6 +277,9 @@ export default class Compiler {
     }) as (...args: Args) => Return;
   }
 
+  frontMatter = this.localQuery(frontMatter);
+  fileKind = this.localQuery(fileKind);
+
   parseFile = this.localQuery(parseFile);
   parseProject = this.globalQuery(parseProject);
 
@@ -272,7 +307,7 @@ export default class Compiler {
   nodeReferee = this.globalQuery(nodeReferee);
   resolutionIndex = this.globalQuery(resolutionIndex);
   symbolReferences = this.globalQuery(symbolReferences);
-  symbolParent = this.globalQuery(symbolParent);
+  symbolParents = this.globalQuery(symbolParents);
   symbolMetadata = this.globalQuery(symbolMetadata);
   symbolAliases = this.globalQuery(symbolAliases);
   symbolUses = this.globalQuery(symbolUses);
@@ -285,8 +320,13 @@ export default class Compiler {
 
   // transform queries
   renameTable = renameTable.bind(this);
+  renameElement = renameElement.bind(this);
+  removeElement = removeElement.bind(this);
   updateElementSetting = updateElementSetting.bind(this);
   updateElementSettingEdit = updateElementSettingEdit.bind(this);
+  findMetadataBlock = findMetadataBlock.bind(this);
+  updateElementMetadata = updateElementMetadata.bind(this);
+  updateElementMetadataEdit = updateElementMetadataEdit.bind(this);
   syncDiagramView = syncDiagramView.bind(this);
   syncDep = syncDep.bind(this);
 

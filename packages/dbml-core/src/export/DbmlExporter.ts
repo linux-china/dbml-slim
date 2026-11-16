@@ -1,6 +1,6 @@
 import { groupBy, isEmpty, reduce } from 'lodash-es';
 import {
-  addDoubleQuoteIfNeeded, escapeString, formatRecordValue, getRelationshipOp, normalizeQualifiedName, parseCardinality,
+  addDoubleQuoteIfNeeded, escapeString, formatTypedValue, getRelationshipOp, normalizeQualifiedName, parseCardinality,
 } from '@dbml/parse';
 import type { CustomMetadata, CustomMetadataValue } from '@dbml/parse';
 import { shouldPrintSchema } from './utils';
@@ -142,19 +142,19 @@ class DbmlExporter {
       let line = '';
       const index = model.indexes[indexId];
 
-      if (index.columnIds.length > 1) {
-        line = `(${index.columnIds.map((columnId) => {
-          const column = model.indexColumns[columnId];
-          if (column.type === 'expression') {
-            return `\`${column.value}\``;
-          }
-          return column.value;
-        }).join(', ')})`;
-      } else if (index.columnIds.length === 1) {
-        const column = model.indexColumns[index.columnIds[0]];
-        line = column.type === 'expression'
+      const columnLines = index.columnIds.map((columnId) => {
+        const column = model.indexColumns[columnId];
+        const name = column.type === 'expression'
           ? `\`${column.value}\``
           : column.value;
+        return column.sortOrder === 'desc' ? `${name} [desc]` : name;
+      });
+      // A single `name [desc]` outside parentheses would be read as the index's own settings
+      const hasSortOrder = index.columnIds.some((columnId) => model.indexColumns[columnId].sortOrder === 'desc');
+      if (columnLines.length > 1 || hasSortOrder) {
+        line = `(${columnLines.join(', ')})`;
+      } else if (columnLines.length === 1) {
+        line = columnLines[0];
       }
 
       const indexSettings: string[] = [];
@@ -321,9 +321,19 @@ class DbmlExporter {
       if (ref.onDelete) {
         refActions.push(`delete: ${ref.onDelete.toLowerCase()}`);
       }
+      if (ref.color) {
+        refActions.push(`color: ${ref.color}`);
+      }
       if (ref.inactive) {
         refActions.push('inactive');
       }
+      if (ref.note) {
+        refActions.push(`note: ${DbmlExporter.escapeNote(ref.note)}`);
+      }
+      // Custom metadata is written inline (like Dep), as an unnamed ref cannot be targeted by a Metadata block
+      Object.entries(ref.metadata ?? {}).forEach(([key, value]) => {
+        refActions.push(`${key}: ${DbmlExporter.formatMetadataValue(value)}`);
+      });
       if (refActions.length > 0) {
         line += ` [${refActions.join(', ')}]`;
       }
@@ -464,7 +474,7 @@ class DbmlExporter {
       });
 
       // Build data rows
-      const rowStrs = allRows.map((row) => `  ${row.map(formatRecordValue).join(', ')}`,
+      const rowStrs = allRows.map((row) => `  ${row.map(formatTypedValue).join(', ')}`,
       );
 
       const exampleFlag = groupRecords.some((r) => r.example) ? ' [example]' : '';
@@ -521,10 +531,24 @@ class DbmlExporter {
     return blocks.join('\n');
   }
 
+  static exportProject (model: NormalizedModel): string {
+    const { name, databaseType, note } = model.database['1'];
+    if (!name && !databaseType && !note) return '';
+
+    const projectName = name ? ` "${name}"` : '';
+    const databaseTypeStr = databaseType ? `  database_type: ${DbmlExporter.escapeNote(databaseType)}\n` : '';
+    const noteStr = note ? `  Note: ${DbmlExporter.escapeNote(note)}\n` : '';
+
+    return `Project${projectName} {\n${databaseTypeStr}${noteStr}}\n`;
+  }
+
   static export (model: NormalizedModel, options: DbmlExporterOptions): string {
     const elementStrs: string[] = [];
     const database = model.database['1'];
     const { includeRecords } = options;
+
+    const projectStr = DbmlExporter.exportProject(model);
+    if (projectStr) elementStrs.push(projectStr);
 
     database.schemaIds.forEach((schemaId) => {
       const {
